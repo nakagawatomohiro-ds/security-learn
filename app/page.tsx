@@ -1,211 +1,502 @@
-// DS クラウドセキュリティサービス - Home
+// DSCSS ホーム画面
 "use client";
 import { useState, useEffect } from "react";
+import { STAGES, STORAGE_KEY, POINTS_PER_CORRECT } from "../lib/questions";
 
-type StageStatus = "completed" | "in_progress" | "locked";
-
-const STORAGE_KEY = "securelearn_progress";
-const POINTS_PER_CORRECT = 20;
-
-interface ProgressData {
-  [stageId: number]: { completedQuestions: number; score: number; finished: boolean };
+interface StageProgress {
+  completedQuestions: number;
+  score: number;
+  finished: boolean;
 }
 
-const stageDefaults = [
-  { id: 1, title: "Stage 1", name: "基礎知識", topics: ["パスワード管理", "フィッシング対策", "不審メール対応"], totalQuestions: 10, quizPath: "/quiz?stage=1", color: "#16a34a", emoji: "🟢", purpose: "ヒューマンエラーの削減" },
-  { id: 2, title: "Stage 2", name: "社内ルール理解", topics: ["情報持ち出し基準", "クラウド利用ルール", "アクセス権管理"], totalQuestions: 10, quizPath: "/quiz?stage=2", color: "#ca8a04", emoji: "🟡", purpose: "内部事故の防止" },
-  { id: 3, title: "Stage 3", name: "実践対応力", topics: ["標的型攻撃メール対応", "ランサムウェア初動", "報告フロー"], totalQuestions: 10, quizPath: "/quiz?stage=3", color: "#ea580c", emoji: "🟠", purpose: "初動対応の迅速化" },
-  { id: 4, title: "Stage 4", name: "経営リスク管理", topics: ["損害額シミュレーション", "法的責任", "ゼロトラスト概念"], totalQuestions: 10, quizPath: "/quiz?stage=4", color: "#dc2626", emoji: "🔴", purpose: "経営判断レベルでの理解" },
-  { id: 5, title: "Stage 5", name: "上級者コース", topics: ["サプライチェーン攻撃", "AI悪用リスク", "内部不正対策"], totalQuestions: 10, quizPath: "/quiz?stage=5", color: "#374151", emoji: "⚫", purpose: "社内セキュリティリーダー育成" },
-];
+type Progress = Record<number, StageProgress>;
 
-function getTier(score: number) {
-  if (score >= 1000) return { label: "パーフェクト認定", color: "#f59e0b", icon: "🏆" };
-  if (score >= 900) return { label: "クラウドマスター", color: "#7c3aed", icon: "⭐" };
-  if (score >= 800) return { label: "セキュリティリーダー", color: "#1e40af", icon: "🛡️" };
-  return { label: "学習中", color: "#64748b", icon: "📚" };
+// ── ランク判定 ──
+function getRank(totalPts: number) {
+  if (totalPts >= 1000) return { label: "パーフェクト認定", color: "#7c3aed", icon: "👑" };
+  if (totalPts >= 900) return { label: "クラウドマスター", color: "#dc2626", icon: "🏆" };
+  if (totalPts >= 800) return { label: "セキュリティリーダー", color: "#2563eb", icon: "🛡️" };
+  if (totalPts >= 400) return { label: "セキュリティ実践者", color: "#059669", icon: "📘" };
+  if (totalPts > 0) return { label: "学習中", color: "#64748b", icon: "📖" };
+  return { label: "未受講", color: "#94a3b8", icon: "—" };
 }
 
-function buildStages(progress: ProgressData) {
-  return stageDefaults.map((def, idx) => {
-    const p = progress[def.id];
-    const completedQuestions = p?.completedQuestions ?? 0;
-    const finished = p?.finished ?? false;
-    let status: StageStatus;
-    if (finished) status = "completed";
-    else if (idx === 0) status = "in_progress";
-    else status = (progress[stageDefaults[idx - 1].id]?.finished ?? false) ? "in_progress" : "locked";
-    return { ...def, completedQuestions, status };
-  });
-}
-
-export default function App() {
-  const [stages, setStages] = useState<ReturnType<typeof buildStages>>([]);
-  const [totalScore, setTotalScore] = useState(0);
-
-  function load() {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const progress: ProgressData = raw ? JSON.parse(raw) : {};
-    setStages(buildStages(progress));
-    const pts = Object.values(progress).reduce((s, p) => s + (p.score ?? 0), 0) * POINTS_PER_CORRECT;
-    setTotalScore(pts);
-  }
+export default function HomePage() {
+  const [progress, setProgress] = useState<Progress>({});
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    load();
-    const onStorage = (e: StorageEvent) => { if (e.key === STORAGE_KEY) load(); };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setMounted(true);
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) setProgress(JSON.parse(raw));
+    } catch {}
   }, []);
 
-  const tier = getTier(totalScore);
-  const scorePct = Math.min(100, Math.round((totalScore / 1000) * 100));
-  const completedStages = stages.filter(s => s.status === "completed").length;
+  // ── スコア計算 ──
+  const totalPoints = Object.values(progress).reduce(
+    (sum, p) => sum + (p.score ?? 0) * POINTS_PER_CORRECT,
+    0
+  );
+  const completedStages = Object.values(progress).filter((p) => p.finished).length;
+  const rank = getRank(totalPoints);
+
+  // ── アニメーション用 ──
+  const pct = Math.min(100, Math.round((totalPoints / 1000) * 100));
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f0f4f8", fontFamily: "'Segoe UI', 'Hiragino Sans', 'Yu Gothic UI', sans-serif" }}>
-
-      {/* Header */}
-      <header style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%)", padding: "0 20px", position: "sticky", top: 0, zIndex: 10, boxShadow: "0 2px 16px rgba(0,0,0,0.2)" }}>
-        <div style={{ maxWidth: 760, margin: "0 auto", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#f0f4f8",
+        fontFamily: "'Segoe UI', 'Hiragino Sans', 'Yu Gothic UI', sans-serif",
+      }}
+    >
+      {/* ── ヘッダー ── */}
+      <header
+        style={{
+          background: "linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%)",
+          padding: "0 20px",
+          boxShadow: "0 2px 20px rgba(0,0,0,0.2)",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 800,
+            margin: "0 auto",
+            height: 60,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 36, height: 36, background: "rgba(255,255,255,0.15)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🛡️</div>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", letterSpacing: "-0.2px", lineHeight: 1.2 }}>DSクラウドセキュリティ</div>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", letterSpacing: "1px", textTransform: "uppercase" }}>Security Learning Platform</div>
-            </div>
+            <span style={{ fontSize: 22, fontWeight: 800, color: "#fff", letterSpacing: "-0.5px" }}>
+              DSCSS
+            </span>
+            <span
+              style={{
+                fontSize: 10,
+                color: "rgba(255,255,255,0.6)",
+                fontWeight: 600,
+                letterSpacing: "0.3px",
+                marginTop: 2,
+              }}
+            >
+              DropStone Cloud Security Study
+            </span>
           </div>
-          <div style={{ background: "rgba(255,255,255,0.18)", borderRadius: 20, padding: "5px 14px", display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 14 }}>{tier.icon}</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{totalScore} pt</span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              background: "rgba(255,255,255,0.12)",
+              borderRadius: 10,
+              padding: "6px 14px",
+            }}
+          >
+            <span style={{ fontSize: 16 }}>{rank.icon}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{rank.label}</span>
           </div>
         </div>
       </header>
 
-      <main style={{ maxWidth: 760, margin: "0 auto", padding: "20px 14px 80px" }}>
-
-        {/* Score Card */}
-        <div style={{ background: "#fff", borderRadius: 16, padding: 20, marginBottom: 18, boxShadow: "0 2px 12px rgba(0,0,0,0.07)", border: "1px solid #e2e8f0" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+      <main style={{ maxWidth: 800, margin: "0 auto", padding: "24px 16px 60px" }}>
+        {/* ── スコアサマリー ── */}
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: 20,
+            padding: "24px 28px",
+            marginBottom: 20,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+            border: "1px solid #e2e8f0",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 16,
+            }}
+          >
+            {/* 左：年間スコア */}
             <div>
-              <p style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 4 }}>年間累積スコア</p>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                <span style={{ fontSize: 38, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>{totalScore}</span>
-                <span style={{ fontSize: 15, color: "#94a3b8", fontWeight: 500 }}> / 1,000 pt</span>
-              </div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ background: tier.color + "18", border: `1.5px solid ${tier.color}60`, borderRadius: 20, padding: "5px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 15 }}>{tier.icon}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: tier.color }}>{tier.label}</span>
-              </div>
-              <p style={{ fontSize: 11, color: "#94a3b8", marginTop: 5 }}>{completedStages} / 5 ステージ完了</p>
-            </div>
-          </div>
-          <div style={{ background: "#f1f5f9", borderRadius: 8, height: 10, overflow: "hidden", marginBottom: 8 }}>
-            <div style={{ width: `${scorePct}%`, height: "100%", background: "linear-gradient(90deg, #1e40af, #60a5fa)", borderRadius: 8, transition: "width 1.2s ease" }} />
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 10, color: "#cbd5e1", fontWeight: 600 }}>0 pt</span>
-            <div style={{ display: "flex", gap: 14 }}>
-              {[{ s: 800, label: "リーダー" }, { s: 900, label: "マスター" }, { s: 1000, label: "完璧" }].map(t => (
-                <span key={t.s} style={{ fontSize: 10, color: totalScore >= t.s ? "#1e40af" : "#cbd5e1", fontWeight: 700 }}>
-                  {t.s}pt {t.label}
+              <p
+                style={{
+                  fontSize: 11,
+                  color: "#94a3b8",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.6px",
+                  marginBottom: 4,
+                }}
+              >
+                年間スコア
+              </p>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                <span
+                  style={{
+                    fontSize: 44,
+                    fontWeight: 800,
+                    color: "#0f172a",
+                    lineHeight: 1,
+                  }}
+                >
+                  {mounted ? totalPoints : "—"}
                 </span>
-              ))}
+                <span style={{ fontSize: 16, fontWeight: 600, color: "#94a3b8" }}>
+                  / 1,000 pt
+                </span>
+              </div>
             </div>
+
+            {/* 右：ステータス */}
+            <div style={{ display: "flex", gap: 20 }}>
+              <div style={{ textAlign: "center" }}>
+                <p
+                  style={{
+                    fontSize: 10,
+                    color: "#94a3b8",
+                    fontWeight: 600,
+                    marginBottom: 4,
+                  }}
+                >
+                  完了ステージ
+                </p>
+                <p
+                  style={{
+                    fontSize: 28,
+                    fontWeight: 800,
+                    color: "#1e40af",
+                    margin: 0,
+                    lineHeight: 1,
+                  }}
+                >
+                  {mounted ? completedStages : "—"}
+                  <span style={{ fontSize: 14, fontWeight: 600, color: "#94a3b8" }}>/5</span>
+                </p>
+              </div>
+              <div style={{ width: 1, background: "#e2e8f0" }} />
+              <div style={{ textAlign: "center" }}>
+                <p
+                  style={{
+                    fontSize: 10,
+                    color: "#94a3b8",
+                    fontWeight: 600,
+                    marginBottom: 4,
+                  }}
+                >
+                  ランク
+                </p>
+                <p
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: rank.color,
+                    margin: 0,
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {rank.icon} {mounted ? rank.label : "—"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* プログレスバー */}
+          <div
+            style={{
+              background: "#e2e8f0",
+              borderRadius: 8,
+              height: 10,
+              marginTop: 20,
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: mounted ? `${pct}%` : "0%",
+                height: "100%",
+                background:
+                  pct >= 100
+                    ? "linear-gradient(90deg, #7c3aed, #a855f7)"
+                    : pct >= 80
+                    ? "linear-gradient(90deg, #1e40af, #3b82f6)"
+                    : "linear-gradient(90deg, #1e3a8a, #2563eb)",
+                borderRadius: 8,
+                transition: "width 1s ease",
+              }}
+            />
+          </div>
+
+          {/* ランク目安 */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginTop: 8,
+              fontSize: 10,
+              color: "#94a3b8",
+              fontWeight: 600,
+            }}
+          >
+            <span>0</span>
+            <span>800 リーダー</span>
+            <span>900 マスター</span>
+            <span>1,000</span>
           </div>
         </div>
 
-        {/* Stages label */}
-        <p style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 10 }}>
-          学習ステージ — 順番にクリアして知識を積み上げましょう
-        </p>
+        {/* ── ステージ一覧 ── */}
+        <h2
+          style={{
+            fontSize: 14,
+            fontWeight: 700,
+            color: "#374151",
+            marginBottom: 14,
+            paddingLeft: 4,
+          }}
+        >
+          ステージ一覧
+        </h2>
 
-        {/* Stage cards */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {stages.map((stage) => {
-            const pct = Math.round((stage.completedQuestions / stage.totalQuestions) * 100);
-            const isLocked = stage.status === "locked";
-            const isDone = stage.status === "completed";
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {STAGES.map((stage) => {
+            const sp = progress[stage.id];
+            const stagePts = sp ? sp.score * POINTS_PER_CORRECT : 0;
+            const stageMax = stage.questions.length * POINTS_PER_CORRECT;
+            const stagePct = sp ? Math.round((sp.score / stage.questions.length) * 100) : 0;
+            const isFinished = sp?.finished ?? false;
+
             return (
-              <div
+              <a
                 key={stage.id}
-                onClick={() => { if (!isLocked) window.location.href = stage.quizPath; }}
+                href={`/quiz?stage=${stage.id}`}
                 style={{
+                  textDecoration: "none",
+                  color: "inherit",
                   background: "#fff",
-                  borderRadius: 14,
-                  padding: "16px 18px",
-                  border: `1.5px solid ${isDone ? stage.color + "50" : isLocked ? "#e8ecf0" : stage.color + "40"}`,
-                  opacity: isLocked ? 0.5 : 1,
-                  cursor: isLocked ? "not-allowed" : "pointer",
-                  boxShadow: isDone ? `0 2px 12px ${stage.color}18` : "0 1px 4px rgba(0,0,0,0.04)",
+                  border: `1.5px solid ${isFinished ? stage.color + "40" : "#e2e8f0"}`,
+                  borderRadius: 16,
+                  padding: "18px 22px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
                   transition: "all 0.2s ease",
-                  position: "relative",
-                  overflow: "hidden",
+                  display: "block",
                 }}
               >
-                {isDone && (
-                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${stage.color}, ${stage.color}66)` }} />
-                )}
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 12, background: isLocked ? "#f1f5f9" : stage.color + "15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>
-                    {isLocked ? "🔒" : stage.emoji}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 3 }}>
-                      <div>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: isLocked ? "#94a3b8" : stage.color, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                          {stage.title} · {stage.purpose}
-                        </span>
-                        <h3 style={{ fontSize: 15, fontWeight: 700, color: isLocked ? "#94a3b8" : "#0f172a", margin: "2px 0 3px" }}>{stage.name}</h3>
-                        <p style={{ fontSize: 11, color: "#94a3b8", margin: 0 }}>{stage.topics.join(" · ")}</p>
-                      </div>
-                      <div style={{ flexShrink: 0, marginLeft: 10 }}>
-                        {isDone ? (
-                          <span style={{ background: stage.color + "18", border: `1.5px solid ${stage.color}`, borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: stage.color }}>✓ 完了</span>
-                        ) : isLocked ? (
-                          <span style={{ background: "#f1f5f9", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 600, color: "#94a3b8" }}>🔒 ロック中</span>
-                        ) : (
-                          <span style={{ background: "#1e40af18", border: "1.5px solid #1e40af60", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#1e40af" }}>進行中 →</span>
-                        )}
-                      </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 10,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 12,
+                        background: stage.color + "14",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 20,
+                      }}
+                    >
+                      {stage.emoji}
+                    </span>
+                    <div>
+                      <p
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: "#0f172a",
+                          margin: 0,
+                        }}
+                      >
+                        Stage {stage.id}｜{stage.name}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: 11,
+                          color: "#94a3b8",
+                          margin: 0,
+                          marginTop: 2,
+                        }}
+                      >
+                        {stage.subtitle} — {stage.purpose}
+                      </p>
                     </div>
-                    {!isLocked && (
-                      <div style={{ marginTop: 10 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                          <span style={{ fontSize: 11, color: "#94a3b8" }}>{stage.completedQuestions} / {stage.totalQuestions} 問</span>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: isDone ? stage.color : "#64748b" }}>{pct}%</span>
-                        </div>
-                        <div style={{ background: "#f1f5f9", borderRadius: 6, height: 5, overflow: "hidden" }}>
-                          <div style={{ width: `${pct}%`, height: "100%", background: stage.color, borderRadius: 6, transition: "width 0.8s ease" }} />
-                        </div>
-                      </div>
-                    )}
-                    {isLocked && (
-                      <p style={{ fontSize: 11, color: "#94a3b8", margin: "6px 0 0" }}>前のステージを完了するとアンロックされます</p>
-                    )}
                   </div>
+
+                  {/* スコアバッジ */}
+                  {isFinished ? (
+                    <div style={{ textAlign: "right" }}>
+                      <p
+                        style={{
+                          fontSize: 18,
+                          fontWeight: 800,
+                          color: stage.color,
+                          margin: 0,
+                          lineHeight: 1,
+                        }}
+                      >
+                        {stagePts}
+                        <span style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8" }}>
+                          /{stageMax}pt
+                        </span>
+                      </p>
+                      <p
+                        style={{
+                          fontSize: 10,
+                          color: stagePct >= 80 ? "#16a34a" : "#94a3b8",
+                          fontWeight: 600,
+                          margin: 0,
+                          marginTop: 2,
+                        }}
+                      >
+                        {stagePct >= 80 ? "✓ 合格" : "再挑戦推奨"}
+                      </p>
+                    </div>
+                  ) : (
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#1e40af",
+                        background: "#eff6ff",
+                        padding: "6px 14px",
+                        borderRadius: 8,
+                      }}
+                    >
+                      挑戦する →
+                    </span>
+                  )}
                 </div>
-              </div>
+
+                {/* ステージ内プログレスバー */}
+                {isFinished && (
+                  <div
+                    style={{
+                      background: "#f1f5f9",
+                      borderRadius: 6,
+                      height: 6,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${stagePct}%`,
+                        height: "100%",
+                        background: stage.color,
+                        borderRadius: 6,
+                        transition: "width 0.8s ease",
+                      }}
+                    />
+                  </div>
+                )}
+              </a>
             );
           })}
         </div>
 
-        {/* Feature pills */}
-        <div style={{ marginTop: 22, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {[
-            { icon: "☁️", text: "クラウド型SaaS" },
-            { icon: "🔄", text: "年次アップデート" },
-            { icon: "📊", text: "1,000点満点制度" },
-            { icon: "🏆", text: "認定バッジ制度" },
-          ].map(item => (
-            <div key={item.text} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 20, padding: "5px 12px", display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#64748b", fontWeight: 500 }}>
-              <span>{item.icon}</span>{item.text}
-            </div>
-          ))}
+        {/* ── ランク説明 ── */}
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: 16,
+            padding: "20px 24px",
+            marginTop: 24,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+            border: "1px solid #e2e8f0",
+          }}
+        >
+          <h3
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: "#374151",
+              marginBottom: 14,
+            }}
+          >
+            年間1,000点満点評価制度
+          </h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {[
+              { pts: "1,000pt", label: "パーフェクト認定", color: "#7c3aed", icon: "👑" },
+              { pts: "900pt〜", label: "クラウドマスター", color: "#dc2626", icon: "🏆" },
+              { pts: "800pt〜", label: "セキュリティリーダー", color: "#2563eb", icon: "🛡️" },
+            ].map((r) => (
+              <div
+                key={r.label}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "8px 12px",
+                  background: r.color + "08",
+                  borderRadius: 10,
+                  border: `1px solid ${r.color}20`,
+                }}
+              >
+                <span style={{ fontSize: 18 }}>{r.icon}</span>
+                <div>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: r.color }}>{r.label}</span>
+                  <span style={{ fontSize: 11, color: "#94a3b8", marginLeft: 8 }}>{r.pts}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
+
+        {/* ── データリセット ── */}
+        {mounted && totalPoints > 0 && (
+          <div style={{ textAlign: "center", marginTop: 20 }}>
+            <button
+              onClick={() => {
+                if (confirm("学習データをリセットしますか？この操作は取り消せません。")) {
+                  localStorage.removeItem(STORAGE_KEY);
+                  setProgress({});
+                }
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#94a3b8",
+                fontSize: 12,
+                cursor: "pointer",
+                textDecoration: "underline",
+              }}
+            >
+              学習データをリセット
+            </button>
+          </div>
+        )}
+
+        {/* ── フッター ── */}
+        <footer
+          style={{
+            textAlign: "center",
+            marginTop: 32,
+            paddingTop: 20,
+            borderTop: "1px solid #e2e8f0",
+            color: "#94a3b8",
+            fontSize: 11,
+          }}
+        >
+          <p style={{ margin: 0 }}>
+            DSCSS — DropStone クラウドセキュリティ スタディ
+          </p>
+          <p style={{ margin: "4px 0 0", fontSize: 10 }}>
+            © DropStone Inc. クラウドで、全社哠のセキュリティ水準を引き上げる。
+          </p>
+        </footer>
       </main>
     </div>
   );
