@@ -90,7 +90,7 @@ function StageCard({ stage, index }: { stage: any; index: number }) {
     in_progress: { label: "進行中", color: "#1e40af", bg: "#dbeafe", border: "#93c5fd" },
     locked: { label: "ロック中", color: "#94a3b8", bg: "#f1f5f9", border: "#e2e8f0" },
   };
-
+function StageCard({ stage, index }: { stage: any; index: number }) {
   const cfg = statusConfig[stage.status];
 
   return (
