@@ -26,7 +26,7 @@ function StageCard({ stage }: { stage: Stage }) {
   const labels = { completed: "完了", in_progress: "進行中", locked: "ロック中" };
   const color = colors[stage.status];
   return (
-    <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} style={{ background: "#fff", border: `1.5px solid ${hovered ? color : "#e2e8f0"}`, borderRadius: 12, padding: 24, opacity: stage.status === "locked" ? 0.6 : 1, transform: hovered && stage.status !== "locked" ? "translateY(-2px)" : "none", boxShadow: hovered ? "0 8px 24px rgba(0,0,0,0.08)" : "0 1px 4px rgba(0,0,0,0.04)", transition: "all 0.2s ease", cursor: stage.status === "locked" ? "not-allowed" : "pointer" }}>
+    <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} style={{ background: "#fff", border: `1.5px solid ${hovered ? color : "#e2e8f0"}`, borderRadius: 12, padding: 24, opacity: stage.status === "locked" ? 0.6 : 1, transform: hovered && stage.status !== "locked" ? "translateY(-2px)" : "none", boxShadow: hovered ? "0 8px 24px rgba(0,0,0,0.08)" : "0 1px 4px rgba(0,0,0,0.04)", transition: "all 0.2s ease", cursor: stage.status === "locked" ? "not-allowed" : "pointer", onClick: () => { if (stage.id === 1) window.location.href = "/quiz"; } }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", margin: 0 }}>{stage.title}</h3>
         <span style={{ fontSize: 11, fontWeight: 600, color, background: color + "20", padding: "2px 10px", borderRadius: 20 }}>{labels[stage.status]}</span>
