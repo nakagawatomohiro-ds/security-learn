@@ -1,4 +1,6 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-a# DSCSS - DropStone Cloud Security Study
+
+DropStone Cloud Security Study - Security quiz platform built with Next.jsapp`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
 
