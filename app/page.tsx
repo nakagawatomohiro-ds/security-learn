@@ -58,7 +58,7 @@ const userStats = {
   totalBadges: 1,
 };
 
-function XPBar({ current, max }) {
+function XPBar({ current, max }: { current: number; max: number }) {
   const pct = Math.round((current / max) * 100);
   return (
     <div style={{ width: "100%" }}>
