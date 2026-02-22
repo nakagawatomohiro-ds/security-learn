@@ -81,7 +81,7 @@ function XPBar({ current, max }: { current: number; max: number }) {
   );
 }
 
-function StageCard({ stage, index }) {
+function StageCard({ stage, index }: { stage: any; index: number }) {
   const [hovered, setHovered] = useState(false);
   const pct = Math.round((stage.completedQuestions / stage.totalQuestions) * 100);
 
