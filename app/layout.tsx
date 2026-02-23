@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Providers from "./components/Providers";
 
 export const metadata: Metadata = {
   title: "DSクラウドセキュリティ | Security Learning Platform",
-  description: "DropStone クラウドセキュリティ スタディ — 全社員のセキュリティ水準を引き上げる学習プラットフォーム",
+  description:
+    "DropStone クラウドセキュリティ スタディ — 全社員のセキュリティ水準を引き上げる学習プラットフォーム",
 };
 
 export default function RootLayout({
@@ -13,7 +15,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
