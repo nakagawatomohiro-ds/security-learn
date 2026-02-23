@@ -1,4 +1,4 @@
-// DSCSS ホーム画面
+// DSCSS ホーム画面（ロゴ＋グリーンテーマ版）
 "use client";
 import { useState, useEffect } from "react";
 import { STAGES, STORAGE_KEY, POINTS_PER_CORRECT } from "../lib/questions";
@@ -11,14 +11,40 @@ interface StageProgress {
 
 type Progress = Record<number, StageProgress>;
 
+// ── ブランドカラー ──
+const BRAND = {
+  dark: "#0A2E1F",
+  primary: "#14532D",
+  medium: "#166534",
+  accent: "#15803d",
+  light: "#22c55e",
+  bg: "#f0f7f3",
+  bgCard: "#f0fdf4",
+  border: "#d1e7dd",
+};
+
 // ── ランク判定 ──
+const RANKS = [
+  { min: 1000, label: "パーフェクト認定", color: "#7c3aed", icon: "👑", desc: "1,000pt" },
+  { min: 900, label: "クラウドマスター", color: "#dc2626", icon: "🏆", desc: "900pt〜" },
+  { min: 800, label: "セキュリティリーダー", color: "#166534", icon: "🛡️", desc: "800pt〜" },
+  { min: 400, label: "セキュリティ実践者", color: "#059669", icon: "📘", desc: "400pt〜" },
+  { min: 1, label: "学習中", color: "#64748b", icon: "📖", desc: "1pt〜" },
+  { min: 0, label: "未受講", color: "#94a3b8", icon: "—", desc: "0pt" },
+];
+
 function getRank(totalPts: number) {
-  if (totalPts >= 1000) return { label: "パーフェクト認定", color: "#7c3aed", icon: "👑" };
-  if (totalPts >= 900) return { label: "クラウドマスター", color: "#dc2626", icon: "🏆" };
-  if (totalPts >= 800) return { label: "セキュリティリーダー", color: "#2563eb", icon: "🛡️" };
-  if (totalPts >= 400) return { label: "セキュリティ実践者", color: "#059669", icon: "📘" };
-  if (totalPts > 0) return { label: "学習中", color: "#64748b", icon: "📖" };
-  return { label: "未受講", color: "#94a3b8", icon: "—" };
+  return RANKS.find((r) => totalPts >= r.min) ?? RANKS[RANKS.length - 1];
+}
+
+// ── シールドロゴSVG ──
+function ShieldLogo({ size = 36 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M24 4L8 12V22C8 33.1 14.84 43.36 24 46C33.16 43.36 40 33.1 40 22V12L24 4Z" fill="white" fillOpacity="0.2" stroke="white" strokeWidth="2" strokeLinejoin="round"/>
+      <path d="M20 24L23 27L29 20" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
 }
 
 export default function HomePage() {
@@ -40,24 +66,52 @@ export default function HomePage() {
   );
   const completedStages = Object.values(progress).filter((p) => p.finished).length;
   const rank = getRank(totalPoints);
-
-  // ── アニメーション用 ──
   const pct = Math.min(100, Math.round((totalPoints / 1000) * 100));
+
+  // 次に挑戦すべきステージ
+  const nextStage = STAGES.find((s) => !progress[s.id]?.finished);
 
   return (
     <div
       style={{
         minHeight: "100vh",
-        background: "#f0f4f8",
+        background: BRAND.bg,
         fontFamily: "'Segoe UI', 'Hiragino Sans', 'Yu Gothic UI', sans-serif",
       }}
     >
+      <style>{`
+        .stage-card {
+          transition: all 0.2s ease;
+        }
+        .stage-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.1) !important;
+        }
+        .rank-row-current {
+          animation: rankPulse 2s ease-in-out infinite;
+        }
+        @keyframes rankPulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.85; }
+        }
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeInUp 0.4s ease forwards; }
+        .fade-in-d1 { animation: fadeInUp 0.4s ease 0.05s both; }
+        .fade-in-d2 { animation: fadeInUp 0.4s ease 0.1s both; }
+        .fade-in-d3 { animation: fadeInUp 0.4s ease 0.15s both; }
+        .fade-in-d4 { animation: fadeInUp 0.4s ease 0.2s both; }
+        .fade-in-d5 { animation: fadeInUp 0.4s ease 0.25s both; }
+      `}</style>
+
       {/* ── ヘッダー ── */}
       <header
         style={{
-          background: "linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%)",
+          background: `linear-gradient(135deg, ${BRAND.dark} 0%, ${BRAND.primary} 50%, ${BRAND.medium} 100%)`,
           padding: "0 20px",
-          boxShadow: "0 2px 20px rgba(0,0,0,0.2)",
+          boxShadow: "0 2px 20px rgba(10,46,31,0.3)",
         }}
       >
         <div
@@ -70,21 +124,23 @@ export default function HomePage() {
             justifyContent: "space-between",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 22, fontWeight: 800, color: "#fff", letterSpacing: "-0.5px" }}>
-              DSCSS
-            </span>
-            <span
-              style={{
-                fontSize: 10,
-                color: "rgba(255,255,255,0.6)",
-                fontWeight: 600,
-                letterSpacing: "0.3px",
-                marginTop: 2,
-              }}
-            >
-              DropStone Cloud Security Study
-            </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <ShieldLogo size={32} />
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <span style={{ fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: "0.5px", lineHeight: 1.1 }}>
+                DSCSS
+              </span>
+              <span
+                style={{
+                  fontSize: 8.5,
+                  color: "rgba(255,255,255,0.55)",
+                  fontWeight: 600,
+                  letterSpacing: "0.5px",
+                }}
+              >
+                DropStone Cloud Security Study
+              </span>
+            </div>
           </div>
           <div
             style={{
@@ -105,13 +161,14 @@ export default function HomePage() {
       <main style={{ maxWidth: 800, margin: "0 auto", padding: "24px 16px 60px" }}>
         {/* ── スコアサマリー ── */}
         <div
+          className="fade-in"
           style={{
             background: "#fff",
             borderRadius: 20,
             padding: "24px 28px",
             marginBottom: 20,
             boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
-            border: "1px solid #e2e8f0",
+            border: `1px solid ${BRAND.border}`,
           }}
         >
           <div
@@ -157,50 +214,20 @@ export default function HomePage() {
             {/* 右：ステータス */}
             <div style={{ display: "flex", gap: 20 }}>
               <div style={{ textAlign: "center" }}>
-                <p
-                  style={{
-                    fontSize: 10,
-                    color: "#94a3b8",
-                    fontWeight: 600,
-                    marginBottom: 4,
-                  }}
-                >
+                <p style={{ fontSize: 10, color: "#94a3b8", fontWeight: 600, marginBottom: 4 }}>
                   完了ステージ
                 </p>
-                <p
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 800,
-                    color: "#1e40af",
-                    margin: 0,
-                    lineHeight: 1,
-                  }}
-                >
+                <p style={{ fontSize: 28, fontWeight: 800, color: BRAND.medium, margin: 0, lineHeight: 1 }}>
                   {mounted ? completedStages : "—"}
                   <span style={{ fontSize: 14, fontWeight: 600, color: "#94a3b8" }}>/5</span>
                 </p>
               </div>
               <div style={{ width: 1, background: "#e2e8f0" }} />
               <div style={{ textAlign: "center" }}>
-                <p
-                  style={{
-                    fontSize: 10,
-                    color: "#94a3b8",
-                    fontWeight: 600,
-                    marginBottom: 4,
-                  }}
-                >
+                <p style={{ fontSize: 10, color: "#94a3b8", fontWeight: 600, marginBottom: 4 }}>
                   ランク
                 </p>
-                <p
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: rank.color,
-                    margin: 0,
-                    lineHeight: 1.3,
-                  }}
-                >
+                <p style={{ fontSize: 14, fontWeight: 700, color: rank.color, margin: 0, lineHeight: 1.3 }}>
                   {rank.icon} {mounted ? rank.label : "—"}
                 </p>
               </div>
@@ -225,8 +252,8 @@ export default function HomePage() {
                   pct >= 100
                     ? "linear-gradient(90deg, #7c3aed, #a855f7)"
                     : pct >= 80
-                    ? "linear-gradient(90deg, #1e40af, #3b82f6)"
-                    : "linear-gradient(90deg, #1e3a8a, #2563eb)",
+                    ? `linear-gradient(90deg, ${BRAND.primary}, ${BRAND.accent})`
+                    : `linear-gradient(90deg, ${BRAND.dark}, ${BRAND.medium})`,
                 borderRadius: 8,
                 transition: "width 1s ease",
               }}
@@ -251,6 +278,50 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* ── おすすめ案内 ── */}
+        {mounted && nextStage && (
+          <a
+            href={`/quiz?stage=${nextStage.id}`}
+            className="stage-card fade-in-d1"
+            style={{
+              display: "block",
+              textDecoration: "none",
+              color: "inherit",
+              background: `linear-gradient(135deg, ${nextStage.color}10, ${nextStage.color}05)`,
+              border: `1.5px solid ${nextStage.color}30`,
+              borderRadius: 14,
+              padding: "14px 20px",
+              marginBottom: 20,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 20 }}>{nextStage.emoji}</span>
+                <div>
+                  <p style={{ fontSize: 11, color: "#64748b", fontWeight: 600, margin: 0, marginBottom: 2 }}>
+                    {completedStages === 0 ? "まずはここから！" : "次のステージ"}
+                  </p>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", margin: 0 }}>
+                    Stage {nextStage.id}｜{nextStage.name}
+                  </p>
+                </div>
+              </div>
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: nextStage.color,
+                  background: nextStage.color + "14",
+                  padding: "6px 14px",
+                  borderRadius: 8,
+                }}
+              >
+                挑戦する →
+              </span>
+            </div>
+          </a>
+        )}
+
         {/* ── ステージ一覧 ── */}
         <h2
           style={{
@@ -265,7 +336,7 @@ export default function HomePage() {
         </h2>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {STAGES.map((stage) => {
+          {STAGES.map((stage, idx) => {
             const sp = progress[stage.id];
             const stagePts = sp ? sp.score * POINTS_PER_CORRECT : 0;
             const stageMax = stage.questions.length * POINTS_PER_CORRECT;
@@ -276,15 +347,15 @@ export default function HomePage() {
               <a
                 key={stage.id}
                 href={`/quiz?stage=${stage.id}`}
+                className={`stage-card fade-in-d${Math.min(idx + 1, 5)}`}
                 style={{
                   textDecoration: "none",
                   color: "inherit",
                   background: "#fff",
-                  border: `1.5px solid ${isFinished ? stage.color + "40" : "#e2e8f0"}`,
+                  border: `1.5px solid ${isFinished ? stage.color + "40" : BRAND.border}`,
                   borderRadius: 16,
                   padding: "18px 22px",
                   boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-                  transition: "all 0.2s ease",
                   display: "block",
                 }}
               >
@@ -293,7 +364,7 @@ export default function HomePage() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    marginBottom: 10,
+                    marginBottom: isFinished ? 10 : 0,
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -312,24 +383,10 @@ export default function HomePage() {
                       {stage.emoji}
                     </span>
                     <div>
-                      <p
-                        style={{
-                          fontSize: 15,
-                          fontWeight: 700,
-                          color: "#0f172a",
-                          margin: 0,
-                        }}
-                      >
+                      <p style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", margin: 0 }}>
                         Stage {stage.id}｜{stage.name}
                       </p>
-                      <p
-                        style={{
-                          fontSize: 11,
-                          color: "#94a3b8",
-                          margin: 0,
-                          marginTop: 2,
-                        }}
-                      >
+                      <p style={{ fontSize: 11, color: "#94a3b8", margin: 0, marginTop: 2 }}>
                         {stage.subtitle} — {stage.purpose}
                       </p>
                     </div>
@@ -355,13 +412,13 @@ export default function HomePage() {
                       <p
                         style={{
                           fontSize: 10,
-                          color: stagePct >= 80 ? "#16a34a" : "#94a3b8",
+                          color: stagePct >= 80 ? "#16a34a" : "#f59e0b",
                           fontWeight: 600,
                           margin: 0,
                           marginTop: 2,
                         }}
                       >
-                        {stagePct >= 80 ? "✓ 合格" : "再挑戦推奨"}
+                        {stagePct >= 80 ? "✓ 合格" : "⚠ 再挑戦推奨"}
                       </p>
                     </div>
                   ) : (
@@ -369,8 +426,8 @@ export default function HomePage() {
                       style={{
                         fontSize: 12,
                         fontWeight: 600,
-                        color: "#1e40af",
-                        background: "#eff6ff",
+                        color: BRAND.medium,
+                        background: BRAND.bgCard,
                         padding: "6px 14px",
                         borderRadius: 8,
                       }}
@@ -408,13 +465,14 @@ export default function HomePage() {
 
         {/* ── ランク説明 ── */}
         <div
+          className="fade-in-d5"
           style={{
             background: "#fff",
             borderRadius: 16,
             padding: "20px 24px",
             marginTop: 24,
             boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-            border: "1px solid #e2e8f0",
+            border: `1px solid ${BRAND.border}`,
           }}
         >
           <h3
@@ -427,31 +485,37 @@ export default function HomePage() {
           >
             年間1,000点満点評価制度
           </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {[
-              { pts: "1,000pt", label: "パーフェクト認定", color: "#7c3aed", icon: "👑" },
-              { pts: "900pt〜", label: "クラウドマスター", color: "#dc2626", icon: "🏆" },
-              { pts: "800pt〜", label: "セキュリティリーダー", color: "#2563eb", icon: "🛡️" },
-            ].map((r) => (
-              <div
-                key={r.label}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "8px 12px",
-                  background: r.color + "08",
-                  borderRadius: 10,
-                  border: `1px solid ${r.color}20`,
-                }}
-              >
-                <span style={{ fontSize: 18 }}>{r.icon}</span>
-                <div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: r.color }}>{r.label}</span>
-                  <span style={{ fontSize: 11, color: "#94a3b8", marginLeft: 8 }}>{r.pts}</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {RANKS.filter((r) => r.min > 0).map((r) => {
+              const isCurrent = mounted && rank.label === r.label;
+              return (
+                <div
+                  key={r.label}
+                  className={isCurrent ? "rank-row-current" : ""}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "8px 12px",
+                    background: isCurrent ? r.color + "14" : r.color + "06",
+                    borderRadius: 10,
+                    border: `1.5px solid ${isCurrent ? r.color + "40" : r.color + "15"}`,
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  <span style={{ fontSize: 18, width: 28, textAlign: "center" }}>{r.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: r.color }}>{r.label}</span>
+                    <span style={{ fontSize: 11, color: "#94a3b8", marginLeft: 8 }}>{r.desc}</span>
+                  </div>
+                  {isCurrent && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: r.color, background: r.color + "18", padding: "2px 8px", borderRadius: 6 }}>
+                      現在
+                    </span>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -485,7 +549,7 @@ export default function HomePage() {
             textAlign: "center",
             marginTop: 32,
             paddingTop: 20,
-            borderTop: "1px solid #e2e8f0",
+            borderTop: `1px solid ${BRAND.border}`,
             color: "#94a3b8",
             fontSize: 11,
           }}
@@ -494,7 +558,7 @@ export default function HomePage() {
             DSCSS — DropStone クラウドセキュリティ スタディ
           </p>
           <p style={{ margin: "4px 0 0", fontSize: 10 }}>
-            © DropStone Inc. クラウドで、全社哠のセキュリティ水準を引き上げる。
+            © DropStone Inc. クラウドで、全社員のセキュリティ水準を引き上げる。
           </p>
         </footer>
       </main>
