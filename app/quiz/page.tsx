@@ -2,6 +2,7 @@
 "use client";
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { STAGES, STORAGE_KEY, POINTS_PER_CORRECT } from "../../lib/questions";
 
 // ── ブランドカラー ──
@@ -17,6 +18,7 @@ const BRAND = {
 };
 
 function QuizContent() {
+  const { data: session } = useSession();
   const searchParams = useSearchParams();
   const stageNum = Math.min(5, Math.max(1, Number(searchParams.get("stage") ?? "1")));
   const stage = STAGES.find((s) => s.id === stageNum) ?? STAGES[0];
@@ -48,6 +50,7 @@ function QuizContent() {
 
   function handleNext() {
     if (current + 1 >= questions.length) {
+      // localStorage保存（従来通り）
       const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
       const prog = raw ? JSON.parse(raw) : {};
       prog[stageNum] = {
@@ -56,6 +59,20 @@ function QuizContent() {
         finished: true,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(prog));
+
+      // ログイン済みならDBにも保存
+      if (session?.user?.email) {
+        fetch("/api/quiz/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            stageId: stageNum,
+            score: score,
+            completedQuestions: questions.length,
+          }),
+        }).catch(() => {});
+      }
+
       setFinished(true);
     } else {
       setFadeIn(false);
@@ -242,7 +259,7 @@ function QuizContent() {
               </div>
             </div>
 
-            {/* 回答結果ドット */}
+            {/+ 回答結果ドット */}
             <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
               {answers.map((a, i) => (
                 <div
