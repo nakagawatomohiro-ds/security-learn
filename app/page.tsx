@@ -1,7 +1,9 @@
 // DSCSS ホーム画面（ロゴ＋グリーンテーマ版）
 "use client";
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { STAGES, STORAGE_KEY, POINTS_PER_CORRECT } from "../lib/questions";
+import AuthHeader from "./components/AuthHeader";
 
 interface StageProgress {
   completedQuestions: number;
@@ -48,16 +50,47 @@ function ShieldLogo({ size = 36 }: { size?: number }) {
 }
 
 export default function HomePage() {
+  const { data: session } = useSession();
   const [progress, setProgress] = useState<Progress>({});
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    // まずlocalStorageから読み込み
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) setProgress(JSON.parse(raw));
     } catch {}
   }, []);
+
+  // ログイン済みならDBからも読み込み（DB優先でマージ）
+  useEffect(() => {
+    if (!session?.user?.email) return;
+    fetch("/api/quiz/load")
+      .then((r) => r.ok ? r.json() : null)
+      .then((dbResults) => {
+        if (!dbResults) return;
+        setProgress((prev) => {
+          const merged = { ...prev };
+          for (const [stageId, data] of Object.entries(dbResults)) {
+            const db = data as { score: number; completedQuestions: number; finished: boolean };
+            const local = merged[Number(stageId)];
+            // DBの方がスコアが高い、またはローカルにない場合はDBを優先
+            if (!local || db.score > (local.score ?? 0)) {
+              merged[Number(stageId)] = {
+                completedQuestions: db.completedQuestions,
+                score: db.score,
+                finished: db.finished,
+              };
+            }
+          }
+          // マージ結果をlocalStorageにも反映
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+          return merged;
+        });
+      })
+      .catch(() => {});
+  }, [session]);
 
   // ── スコア計算 ──
   const totalPoints = Object.values(progress).reduce(
@@ -142,18 +175,21 @@ export default function HomePage() {
               </span>
             </div>
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              background: "rgba(255,255,255,0.12)",
-              borderRadius: 10,
-              padding: "6px 14px",
-            }}
-          >
-            <span style={{ fontSize: 16 }}>{rank.icon}</span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{rank.label}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                background: "rgba(255,255,255,0.12)",
+                borderRadius: 10,
+                padding: "6px 14px",
+              }}
+            >
+              <span style={{ fontSize: 16 }}>{rank.icon}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{rank.label}</span>
+            </div>
+            <AuthHeader />
           </div>
         </div>
       </header>
@@ -299,7 +335,7 @@ export default function HomePage() {
                 <span style={{ fontSize: 20 }}>{nextStage.emoji}</span>
                 <div>
                   <p style={{ fontSize: 11, color: "#64748b", fontWeight: 600, margin: 0, marginBottom: 2 }}>
-                    {completedStages === 0 ? "まずはここから！" : "次のステージ"}
+                    {completedStages === 0 ? "ま�Zはここから！" : "次のステージ"}
                   </p>
                   <p style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", margin: 0 }}>
                     Stage {nextStage.id}｜{nextStage.name}
