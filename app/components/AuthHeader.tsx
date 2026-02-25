@@ -25,7 +25,7 @@ export default function AuthHeader() {
             animation: "pulse 1.5s infinite",
           }}
         />
-        <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>èª­ã¿è¾¼ã¿ä¸­...</span>
+        <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>読み込み中...</span>
       </div>
     );
   }
@@ -73,7 +73,7 @@ export default function AuthHeader() {
             transition: "all 0.2s ease",
           }}
         >
-          ã­ã°ã¢ã¦ã
+          ログアウト
         </button>
       </div>
     );
@@ -116,7 +116,7 @@ export default function AuthHeader() {
           fill="#EA4335"
         />
       </svg>
-      Googleã§ã­ã°ã¤ã³
+      Googleでログイン
     </button>
   );
 }
