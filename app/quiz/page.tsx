@@ -1,9 +1,39 @@
 // DSCSS クイズページ（ロゴ＋グリーンテーマ版）
 "use client";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { STAGES, STORAGE_KEY, POINTS_PER_CORRECT } from "../../lib/questions";
+
+// Fisher-Yates シャッフル
+function shuffleArray<T>(array: T[]): T[] {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// シャッフルされた問題の型
+interface ShuffledQuestion {
+  question: string;
+  choices: string[];
+  correct: number;
+  explanation: string;
+}
+
+// 選択肢をシャッフルし、正解インデックスも追従させる
+function shuffleChoices(q: { question: string; choices: string[]; correct: number; explanation: string }): ShuffledQuestion {
+  const indices = q.choices.map((_, i) => i);
+  const shuffledIndices = shuffleArray(indices);
+  return {
+    question: q.question,
+    choices: shuffledIndices.map((i) => q.choices[i]),
+    correct: shuffledIndices.indexOf(q.correct),
+    explanation: q.explanation,
+  };
+}
 
 // ── ブランドカラー ──
 const BRAND = {
@@ -22,7 +52,13 @@ function QuizContent() {
   const searchParams = useSearchParams();
   const stageNum = Math.min(5, Math.max(1, Number(searchParams.get("stage") ?? "1")));
   const stage = STAGES.find((s) => s.id === stageNum) ?? STAGES[0];
-  const questions = stage.questions;
+  const originalQuestions = stage.questions;
+
+  // 選択肢をシャッフルした問題リストを生成（コンポーネント初期化時に1回だけ）
+  const [shuffledQuestions] = useState<ShuffledQuestion[]>(() =>
+    originalQuestions.map((q) => shuffleChoices(q))
+  );
+  const questions = shuffledQuestions;
 
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
@@ -126,541 +162,159 @@ function QuizContent() {
           .next-stage-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
         `}</style>
 
-        <header
-          style={{
-            background: `linear-gradient(135deg, ${BRAND.dark}, ${BRAND.primary})`,
-            padding: "0 20px",
-            boxShadow: "0 2px 16px rgba(10,46,31,0.3)",
-          }}
-        >
-          <div
-            style={{
-              maxWidth: 720,
-              margin: "0 auto",
-              height: 60,
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
-            <a
-              href="/"
-              style={{
-                color: "rgba(255,255,255,0.75)",
-                textDecoration: "none",
-                fontSize: 12,
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "4px 10px",
-                background: "rgba(255,255,255,0.12)",
-                borderRadius: 8,
-              }}
-            >
-              ← ホーム
-            </a>
-            <span style={{ color: "rgba(255,255,255,0.35)" }}>·</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>
-              {stage.emoji} Stage {stage.id}: {stage.name}
-            </span>
-          </div>
-        </header>
+��L��B��X��ܛ�[����S����B��۝�[Z[N����Y��HRI�	�\�Y�[���[���	�]H��X�RI��[��\�\�Y��B�\�^N���^�B��^\�X�[ێ����[[��B�_CB��B��[O��B��^Y��[Y\��\�[�YR[��B����H��X�]N���[�ٛܛN��[��]VJ�
+N�CB����X�]N�N��[�ٛܛN��[��]VJ
+N�CB�CB��^Y��[Y\���[�\�B����H��X�]N���[�ٛܛN���[J�JN�CB����X�]N�N��[�ٛܛN���[JJN�CB�CB��^Y��[Y\��\�ܛ���B����H��Y��CB�CB���\�[X�\��[�[X][ێ��\�[�YR[��\�X\�H�ܝ�\���CB����[�]\�[�[X][ێ���[�\���X\�H������CB���\�Yܛ���[�[X][ێ��\�ܛ��\�X\�H�\����CB���^\�Y�KX���ݙ\���[\����Y��\��K�
+N��[�ٛܛN��[��]VJL\
+N�CB�O��[O�B�B�XY\�B��[O^��B��X��ܛ�[��[�X\�YܘYY[�
+L�YY�	Д�S��\��K	Д�S���[X\�_JXB�Y[�Έ���B����Y�Έ��M��ؘJL
 
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "24px 16px",
-          }}
-        >
-          <div
-            className="result-card"
-            style={{
-              background: "#fff",
-              borderRadius: 20,
-              padding: "36px 28px 28px",
-              maxWidth: 460,
-              width: "100%",
-              textAlign: "center",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
-              border: `1px solid ${BRAND.border}`,
-            }}
-          >
-            <div
-              className="count-up"
-              style={{
-                width: 80,
-                height: 80,
-                borderRadius: "50%",
-                background: resultColor + "14",
-                border: `3px solid ${resultColor}30`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 40,
-                margin: "0 auto 16px",
-              }}
-            >
-              {resultEmoji}
-            </div>
-            <h2 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>
-              {message}
-            </h2>
-            <p style={{ fontSize: 13, color: "#64748b", marginBottom: 6 }}>
-              {questions.length}問中{" "}
-              <strong style={{ color: "#0f172a" }}>{finalScore}問</strong> 正解
-            </p>
-            <p style={{ fontSize: 11, color: isPassed ? "#16a34a" : "#94a3b8", fontWeight: 600, marginBottom: 20 }}>
-              {isPassed ? "✓ 合格（80%以上）" : "合格ライン: 80%"}
-            </p>
+��K��H�B�_CB��B�]�B��[O^��B�X^�Y�
+̌B�X\��[���]]ȋB�ZY��
+�B�\�^N���^�B�[Yے][\Έ��[�\��B��\�L�B�_CB��B�CB��Y�H�ȃB��[O^��B���܎���ؘJ�MK�MK�MK��JH�B�^X�ܘ][ێ���ۙH�B��۝�^�N�L�B�\�^N���^�B�[Yے][\Έ��[�\��B��\�
+B�Y[�Έ�L�B��X��ܛ�[����ؘJ�MK�MK�MK�L�H�B��ܙ\��Y]\ΈB�_CB��B�8��8�����8��B��O�B��[��[O^����܎���ؘJ�MK�MK�MK��JH�_O�����[��B��[��[O^���۝�^�N�L��۝�ZY��
+���܎��ٙ���_O�B���Y�K�[[ښ_H�Y�H��Y�K�YN���Y�K��[Y_CB���[��B��]��B��XY\��B�B�]�B��[O^��B��^�KB�\�^N���^�B�[Yے][\Έ��[�\��B��\�Y�P�۝[����[�\��B�Y[�Έ��M��B�_CB��B�]�B��\�Ә[YOH��\�[X�\��B��[O^��B��X��ܛ�[���ٙ���B��ܙ\��Y]\Έ�B�Y[�Έ�͜���B�X^�Y�
 
-            {/* スコア詳細 */}
-            <div
-              style={{
-                background: "#f8fafc",
-                border: `1px solid ${BRAND.border}`,
-                borderRadius: 14,
-                padding: "18px 20px",
-                marginBottom: 16,
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-around", marginBottom: 14 }}>
-                <div>
-                  <p style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    正解率
-                  </p>
-                  <p className="count-up" style={{ fontSize: 34, fontWeight: 800, color: resultColor, margin: 0, lineHeight: 1 }}>
-                    {pct}%
-                  </p>
-                </div>
-                <div style={{ width: 1, background: "#e2e8f0" }} />
-                <div>
-                  <p style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    獲得ポイント
-                  </p>
-                  <p className="count-up" style={{ fontSize: 34, fontWeight: 800, color: BRAND.medium, margin: 0, lineHeight: 1 }}>
-                    {pts}
-                    <span style={{ fontSize: 14, fontWeight: 600 }}>/{maxPts}pt</span>
-                  </p>
-                </div>
-              </div>
-              <div style={{ background: "#e2e8f0", borderRadius: 8, height: 8, overflow: "hidden" }}>
-                <div
-                  className="bar-grow"
-                  style={{
-                    width: `${pct}%`,
-                    height: "100%",
-                    background: resultColor,
-                    borderRadius: 8,
-                  }}
-                />
-              </div>
-            </div>
+�B��Y��L	H�B�^[Yێ���[�\��B����Y�Έ�̜�ؘJ�JH�B��ܙ\��\��Y	Д�S���ܙ\�XB�_CB��B�]�B��\�Ә[YOH���[�]\�B��[O^��B��Y�B�ZY��B��ܙ\��Y]\Έ�L	H�B��X��ܛ�[���\�[��܈
+��M�B��ܙ\�����Y	ܙ\�[��ܟL�B�\�^N���^�B�[Yے][\Έ��[�\��B��\�Y�P�۝[����[�\��B��۝�^�N�
+B�X\��[���]]�M��B�_CB��B�ܙ\�[[[ښ_CB��]��B���[O^���۝�^�N����۝�ZY����܎����M̘H�X\��[����N�
+_O�B��Y\��Y�_CB����B��[O^���۝�^�N�L���܎��͍
+���X\��[����N�
+�_O�B��]Y\�[ۜ˛[��yec�.+^Ȉ�CB���ۙ��[O^����܎����M̘H�_O�ٚ[�[��ܙ_yec����ۙψ9�h�)��B���B��[O^���۝�^�N�LK��܎�\�\��Y���M�L�H����ML؎��۝�ZY��
+�X\��[����N��_O�B��\�\��Y���$�9d"9�/;�"	y.�y."��"H���d"9�/8��x�8��Έ	H�CB���B�B��ʈ8�x��਺*l��,
+��CB�]�B��[O^��B��X��ܛ�[���َ�Y�ȋB��ܙ\��\��Y	Д�S���ܙ\�XB��ܙ\��Y]\ΈMB�Y[�Έ�N��B�X\��[����N�M�B�_CB��B�]��[O^��\�^N���^��\�Y�P�۝[����X�KX\��[��X\��[����N�M_O�B�]��B��[O^���۝�^�N�LK��܎���ML؎��۝�ZY��
+�X\��[����N�
+^�[�ٛܛN��\\��\�H�]\��X�[�Έ��\�_O�B�9�h�)����B���B��\�Ә[YOH���[�]\��[O^���۝�^�N���۝�ZY����܎��\�[��܋X\��[��[�RZY��H_O�B���ICB���B��]��B�]��[O^���Y�K�X��ܛ�[����L�N��_HσB�]��B��[O^���۝�^�N�LK��܎���ML؎��۝�ZY��
+�X\��[����N�
+^�[�ٛܛN��\\��\�H�]\��X�[�Έ��\�_O�B�9�l�o����x�8�����B���B��\�Ә[YOH���[�]\��[O^���۝�^�N���۝�ZY����܎���S��YY][KX\��[��[�RZY��H_O�B���CB��[��[O^���۝�^�N�M�۝�ZY��
+�_O���X^�\��[��B���B��]��B��]��B�]��[O^���X��ܛ�[����L�N���ܙ\��Y]\ΈZY��ݙ\���Έ�Y[��_O�B�]�B��\�Ә[YOH��\�Yܛ�ȃB��[O^��B��Y�	��IXB�ZY���L	H�B��X��ܛ�[���\�[��܋B��ܙ\��Y]\ΈB�_CB�σB��]��B��]��B�B����9f��e9�d9��8��x�����
+��CB�]��[O^��\�^N���^��\�Y�P�۝[����[�\���\�
+�X\��[����N���^ܘ\��ܘ\�_O�B��[���\�˛X\
 
-            {/+ 回答結果ドット */}
-            <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
-              {answers.map((a, i) => (
-                <div
-                  key={i}
-                  title={`問題${i + 1}: ${a ? "正解" : "不正解"}`}
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 6,
-                    background: a ? "#dcfce7" : "#fee2e2",
-                    border: `1.5px solid ${a ? "#16a34a" : "#ef4444"}`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: a ? "#16a34a" : "#ef4444",
-                  }}
-                >
-                  {a ? "○" : "✕"}
-                </div>
-              ))}
-            </div>
+KJHO�
+B�]�B��^O^�_CB�]O^�9ec�hc	�H
+�_N�	�H���h�)�Ȉ��.#y�h�)�ȟXCB��[O^��B��Y��B�ZY���B��ܙ\��Y]\Έ
+�B��X��ܛ�[��H���٘�MȈ��ٙYL�L��B��ܙ\��K�\��Y	�H���M�L�H����Y�
 
-            {/* ボタン群 */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {isPassed && nextStage && (
-                <a
-                  href={`/quiz?stage=${nextStage.id}`}
-                  className="next-stage-btn"
-                  style={{
-                    display: "block",
-                    background: `linear-gradient(135deg, ${nextStage.color}, ${nextStage.color}dd)`,
-                    color: "#fff",
-                    textDecoration: "none",
-                    borderRadius: 12,
-                    padding: "14px 24px",
-                    fontSize: 14,
-                    fontWeight: 700,
-                    boxShadow: `0 4px 12px ${nextStage.color}40`,
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  {nextStage.emoji} Stage {nextStage.id}: {nextStage.name} へ進む →
-                </a>
-              )}
-              <a
-                href="/"
-                style={{
-                  display: "block",
-                  background: `linear-gradient(135deg, ${BRAND.dark}, ${BRAND.primary})`,
-                  color: "#fff",
-                  textDecoration: "none",
-                  borderRadius: 12,
-                  padding: "13px 24px",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  boxShadow: `0 4px 12px rgba(10,46,31,0.3)`,
-                }}
-              >
-                ← ホームに戻る
-              </a>
-              <button
-                onClick={() => {
-                  setCurrent(0);
-                  setSelected(null);
-                  setShowResult(false);
-                  setScore(0);
-                  setFinished(false);
-                  setFadeIn(true);
-                  setAnswers(new Array(questions.length).fill(null));
-                }}
-                style={{
-                  background: "#f1f5f9",
-                  color: "#374151",
-                  border: "none",
-                  borderRadius: 12,
-                  padding: "12px 24px",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  width: "100%",
-                }}
-              >
-                もう一度挑戦する
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
-  // ── クイズ画面 ──
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: BRAND.bg,
-        fontFamily: "'Segoe UI', 'Hiragino Sans', 'Yu Gothic UI', sans-serif",
-      }}
-    >
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .choice-btn:hover:not([data-answered="true"]) {
-          border-color: #86efac !important;
-          background: ${BRAND.bgCard} !important;
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
-        }
-        .explanation-appear { animation: slideUp 0.3s ease forwards; }
-        .next-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
-      `}</style>
+�XB�\�^N���^�B�[Yے][\Έ��[�\��B��\�Y�P�۝[����[�\��B��۝�^�N�LB��۝�ZY��
+�B���܎�H���M�L�H����Y�
 
-      {/* Header */}
-      <header
-        style={{
-          background: `linear-gradient(135deg, ${BRAND.dark}, ${BRAND.primary})`,
-          padding: "0 20px",
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
-          boxShadow: "0 2px 16px rgba(10,46,31,0.3)",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 720,
-            margin: "0 auto",
-            height: 60,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <a
-              href="/"
-              style={{
-                color: "rgba(255,255,255,0.75)",
-                textDecoration: "none",
-                fontSize: 12,
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "4px 10px",
-                background: "rgba(255,255,255,0.12)",
-                borderRadius: 8,
-              }}
-            >
-              ← 戻る
-            </a>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>
-              {stage.emoji} Stage {stage.id}: {stage.name}
-            </span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            {/* リアルタイムスコア */}
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
-              <span style={{ color: "#86efac" }}>{score}</span>/{current + (showResult ? 1 : 0)} 正解
-            </span>
-            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>
-              {current + 1} / {questions.length}
-            </span>
-          </div>
-        </div>
-      </header>
 
-      {/* Progress bar */}
-      <div style={{ background: `rgba(10,46,31,0.12)`, height: 4 }}>
-        <div
-          style={{
-            width: `${progressPct}%`,
-            height: "100%",
-            background: stage.color,
-            transition: "width 0.4s ease",
-          }}
-        />
-      </div>
+�B�_CB��B��H����Ȉ���%H�CB��]��B�
+J_CB��]��B�B��ʈ8��8������
+��CB�]��[O^��\�^N���^��^\�X�[ێ����[[���\�_O�B��\�\��Y	���^�Y�H	��
+B�CB��Y�^��]Z^���Y�OIۙ^�Y�K�YXCB��\�Ә[YOH��^\�Y�KX���B��[O^��B�\�^N�����ȋB��X��ܛ�[��[�X\�YܘYY[�
+L�YY�	ۙ^�Y�K���ܟK	ۙ^�Y�K���ܟY
+XB���܎��ٙ���B�^X�ܘ][ێ���ۙH�B��ܙ\��Y]\ΈL�B�Y[�Έ�M��B��۝�^�N�MB��۝�ZY��
+�B����Y�Έ
+L�	ۙ^�Y�K���ܟMB��[��][ێ��[���X\�H�B�_CB��B�ۙ^�Y�K�[[ښ_H�Y�Hۙ^�Y�K�YN�ۙ^�Y�K��[Y_H8�n:`,��8���B��O�B�
+_CB�CB��Y�H�ȃB��[O^��B�\�^N�����ȋB��X��ܛ�[��[�X\�YܘYY[�
+L�YY�	Д�S��\��K	Д�S���[X\�_JXB���܎��ٙ���B�^X�ܘ][ێ���ۙH�B��ܙ\��Y]\ΈL�B�Y[�Έ�L���B��۝�^�N�MB��۝�ZY��
+�B����Y�Έ
+L��ؘJL
 
-      {/* 問題ドットインジケーター */}
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "12px 16px 0", display: "flex", justifyContent: "center", gap: 4 }}>
-        {questions.map((_, i) => (
-          <div
-            key={i}
-            style={{
-              width: i === current ? 20 : 8,
-              height: 8,
-              borderRadius: 4,
-              background:
-                answers[i] === true
-                  ? "#16a34a"
-                  : answers[i] === false
-                  ? "#ef4444"
-                  : i === current
-                  ? stage.color
-                  : "#cbd5e1",
-              transition: "all 0.3s ease",
-            }}
-          />
-        ))}
-      </div>
+��K��XB�_CB��B�8��8�����8��8�j��.���B��O�B��]ۃB�ې�X��^�
+HO��B���8����8�8स����x��8��x�e��i�`n9��� ��हa�x����������x���B��[��˛��][ۋ��[�Y
 
-      <main
-        style={{
-          maxWidth: 720,
-          margin: "0 auto",
-          padding: "16px 16px 80px",
-          opacity: fadeIn ? 1 : 0,
-          transform: fadeIn ? "translateY(0)" : "translateY(8px)",
-          transition: "all 0.15s ease",
-        }}
-      >
-        {/* Question card */}
-        <div
-          style={{
-            background: "#fff",
-            border: `1.5px solid ${BRAND.border}`,
-            borderRadius: 16,
-            padding: "20px 22px",
-            marginBottom: 14,
-            boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-          }}
-        >
-          <p
-            style={{
-              fontSize: 11,
-              color: stage.color,
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: "0.6px",
-              marginBottom: 10,
-            }}
-          >
-            問題 {current + 1}
-          </p>
-          <p style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", lineHeight: 1.65, margin: 0 }}>
-            {q.question}
-          </p>
-        </div>
+N�B�_CB��[O^��B��X��ܛ�[���ٌY�Y�H�B���܎�����MLH�B��ܙ\����ۙH�B��ܙ\��Y]\ΈL�B�Y[�Έ�L���B��۝�^�N�MB��۝�ZY��
+�B��\��܎���[�\��B��Y��L	H�B�_CB��B�8࠸�a�. 9n���$y�)��fx��B�؝]ۏ�B��]��B��]��B��]��B��]��B�
+N�B�CB�B���8� 8� 8���8ஹ�.�gh�8� 8� B��]\��
+B�]�B��[O^��B�Z[�ZY���L��B��X��ܛ�[����S����B��۝�[Z[N����Y��HRI�	�\�Y�[���[���	�]H��X�RI��[��\�\�Y��B�_CB��B��[O��B��^Y��[Y\��YR[��B����H��X�]N���[�ٛܛN��[��]VJ
+N�CB����X�]N�N��[�ٛܛN��[��]VJ
+N�CB�CB��^Y��[Y\��YU\�B����H��X�]N���[�ٛܛN��[��]VJL�
+N�CB����X�]N�N��[�ٛܛN��[��]VJ
+N�CB�CB����X�KX���ݙ\����
+�]KX[���\�YH��YH�JH�B��ܙ\�X��܎��
+�Y�X�Z[\ܝ[��B��X��ܛ�[��	Д�S�����\�HZ[\ܝ[��B��[�ٛܛN��[��]VJL\
+N�B���\�Y�Έ
+L��ؘJ�
+HZ[\ܝ[��B�CB��^[�][ۋX\X\��[�[X][ێ��YU\���X\�H�ܝ�\���CB���^X���ݙ\���[\����Y��\��K�
+N��[�ٛܛN��[��]VJL\
+N�CB�O��[O�B�B��ʈXY\�
+��CB�XY\�B��[O^��B��X��ܛ�[��[�X\�YܘYY[�
+L�YY�	Д�S��\��K	Д�S���[X\�_JXB�Y[�Έ���B���][ێ���X��H�B���B��[�^�LB����Y�Έ��M��ؘJL
 
-        {/* Choices */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
-          {q.choices.map((choice, i) => {
-            let bg = "#fff",
-              border = BRAND.border,
-              color = "#0f172a";
-            let badgeBg = "#f1f5f9";
-            const isAnswered = selected !== null;
-            if (isAnswered) {
-              if (i === q.correct) {
-                bg = "#f0fdf4";
-                border = "#16a34a";
-                color = "#15803d";
-                badgeBg = "#dcfce7";
-              } else if (i === selected && selected !== q.correct) {
-                bg = "#fff5f5";
-                border = "#ef4444";
-                color = "#dc2626";
-                badgeBg = "#fee2e2";
-              }
-            }
-            return (
-              <button
-                key={i}
-                className="choice-btn"
-                data-answered={isAnswered ? "true" : "false"}
-                onClick={() => handleSelect(i)}
-                style={{
-                  background: bg,
-                  border: `1.5px solid ${border}`,
-                  borderRadius: 12,
-                  padding: "14px 18px",
-                  textAlign: "left",
-                  cursor: isAnswered ? "default" : "pointer",
-                  transition: "all 0.2s ease",
-                  fontSize: 14,
-                  color,
-                  fontWeight: isAnswered && (i === q.correct || i === selected) ? 600 : 400,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-                }}
-              >
-                <span
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: "50%",
-                    background: badgeBg,
-                    border: `1.5px solid ${border}`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color,
-                    flexShrink: 0,
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  {isAnswered && i === q.correct
-                    ? "○"
-                    : isAnswered && i === selected && selected !== q.correct
-                    ? "✕"
-                    : ["A", "B", "C", "D"][i]}
-                </span>
-                {choice}
-              </button>
-            );
-          })}
-        </div>
+��K��H�B�_CB��B�]�B��[O^��B�X^�Y�
+̌B�X\��[���]]ȋB�ZY��
+�B�\�^N���^�B�[Yے][\Έ��[�\��B��\�Y�P�۝[����X�KX�]�Y[��B�_CB��B�]��[O^��\�^N���^�[Yے][\Έ��[�\���\�L�_O�B�CB��Y�H�ȃB��[O^��B���܎���ؘJ�MK�MK�MK��JH�B�^X�ܘ][ێ���ۙH�B��۝�^�N�L�B�\�^N���^�B�[Yے][\Έ��[�\��B��\�
+B�Y[�Έ�L�B��X��ܛ�[����ؘJ�MK�MK�MK�L�H�B��ܙ\��Y]\ΈB�_CB��B�8��9�.���B��O�B��[��[O^���۝�^�N�M�۝�ZY��
+���܎��ٙ���_O�B���Y�K�[[ښ_H�Y�H��Y�K�YN���Y�K��[Y_CB���[��B��]��B�]��[O^��\�^N���^�[Yے][\Έ��[�\���\�M_O�B��ʈ8��ਸ������8��8�x��ਈ
+��CB��[��[O^���۝�^�N�L���܎���ؘJ�MK�MK�MK��H��۝�ZY��
+�_O�B��[��[O^����܎���
+�Y�XȈ_O����ܙ_O��[�����\��[�
+�
+��ԙ\�[�H�
+_H9�h�)��B���[��B��[��[O^���۝�^�N�L���܎���ؘJ�MK�MK�MK�
+JH��۝�ZY��
+�_O�B���\��[�
+�_H��]Y\�[ۜ˛[��CB���[��B��]��B��]��B��XY\��B�B��ʈ��ܙ\���\�
+��CB�]��[O^���X��ܛ�[���ؘJL
 
-        {/* Explanation */}
-        {showResult && (
-          <div
-            className="explanation-appear"
-            style={{
-              background: selected === q.correct ? "#f0fdf4" : "#fff5f5",
-              border: `1.5px solid ${selected === q.correct ? "#86efac" : "#fca5a5"}`,
-              borderRadius: 12,
-              padding: "16px 18px",
-              marginBottom: 14,
-            }}
-          >
-            <p
-              style={{
-                fontSize: 14,
-                fontWeight: 700,
-                color: selected === q.correct ? "#16a34a" : "#dc2626",
-                marginBottom: 6,
-              }}
-            >
-              {selected === q.correct ? "✓ 正解！" : "✕ 不正解"}
-              {selected !== q.correct && (
-                <span style={{ fontWeight: 500, fontSize: 12, marginLeft: 8, color: "#16a34a" }}>
-                  正解: {["A", "B", "C", "D"][q.correct]}
-                </span>
-              )}
-            </p>
-            <p style={{ fontSize: 13, color: "#374151", lineHeight: 1.65, margin: 0 }}>
-              {q.explanation}
-            </p>
-          </div>
-        )}
+��K�L�XZY��
+_O�B�]�B��[O^��B��Y�	���ܙ\���IXB�ZY���L	H�B��X��ܛ�[���Y�K���܋B��[��][ێ���Y��X\�H�B�_CB�σB��]��B�B��ʈ9ec�hc8��x�����8�8����8�x��8����
+��CB�]��[O^��X^�Y�
+̌X\��[���]]ȋY[�Έ�L�M��\�^N���^��\�Y�P�۝[����[�\���\�
+_O�B��]Y\�[ۜ˛X\
 
-        {/* Next button */}
-        {showResult && (
-          <button
-            className="next-btn"
-            onClick={handleNext}
-            style={{
-              background: `linear-gradient(135deg, ${BRAND.dark}, ${BRAND.primary})`,
-              color: "#fff",
-              border: "none",
-              borderRadius: 12,
-              padding: "14px 24px",
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: "pointer",
-              width: "100%",
-              boxShadow: `0 4px 12px rgba(10,46,31,0.3)`,
-              transition: "all 0.2s ease",
-            }}
-          >
-            {current + 1 >= questions.length ? "結果を見る →" : "次の問題へ →"}
-          </button>
-        )}
-      </main>
-    </div>
-  );
-}
+�JHO�
+B�]�B��^O^�_CB��[O^��B��Y�HOOH�\��[����B�ZY��B��ܙ\��Y]\Έ
+B��X��ܛ�[��B�[���\���WHOOH�YCB����M�L�H�B��[���\���WHOOH�[�CB����Y�
 
-export default function QuizPage() {
-  return (
-    <Suspense
-      fallback={
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            minHeight: "100vh",
-            fontSize: 16,
-            color: "#64748b",
-            background: BRAND.bg,
-          }}
-        >
-          読み込み中...
-        </div>
-      }
-    >
-      <QuizContent />
-    </Suspense>
-  );
-}
+
+�B��HOOH�\��[�B���Y�K���܃B����ؙ
+YLH�B��[��][ێ��[���X\�H�B�_CB�σB�
+J_CB��]��B�B�XZ[�B��[O^��B�X^�Y�
+̌B�X\��[���]]ȋB�Y[�Έ�M�M��B��X�]N��YR[��H�B��[�ٛܛN��YR[����[��]VJ
+H����[��]VJ
+H�B��[��][ێ��[�M\�X\�H�B�_CB��B��ʈ]Y\�[ۈ�\�
+��CB�]�B��[O^��B��X��ܛ�[���ٙ���B��ܙ\��K�\��Y	Д�S���ܙ\�XB��ܙ\��Y]\ΈM�B�Y[�Έ�����B�X\��[����N�MB����Y�Έ���ؘJ�
+JH�B�_CB��B�B��[O^��B��۝�^�N�LKB���܎��Y�K���܋B��۝�ZY��
+�B�^�[�ٛܛN��\\��\�H�B�]\��X�[�Έ����B�X\��[����N�LB�_CB��B�9ec�hc��\��[�
+�_CB���B��[O^���۝�^�N�M��۝�ZY��
+���܎����M̘H�[�RZY��K��KX\��[��_O�B��K�]Y\�[۟CB���B��]��B�B��ʈ��X�\�
+��CB�]��[O^��\�^N���^��^\�X�[ێ����[[���\�LX\��[����N�M_O�B��K���X�\˛X\
+
+��X�KJHO��B�]��H�ٙ���B��ܙ\�H��S���ܙ\�B���܈H���M̘H��B�]�Y�P��H�ٌY�Y�H��B��ۜ�\�[���\�YH�[X�YOOH�[�B�Y�
+\�[���\�Y
+H�B�Y�
+HOOHK��ܜ�X�
+H�B���H�ٌ����B��ܙ\�H��M�L�H��B���܈H��MN���B��Y�P��H��٘�MȎ�B�H[�HY�
+HOOH�[X�Y	���[X�YOOHK��ܜ�X�
+H�B���H�ٙ��Y�H��B��ܙ\�H��Y�
+
+
+��B���܈H��̍�����B��Y�P��H�ٙYL�L���B�CB�CB��]\��
+B��]ۃB��^O^�_CB��\�Ә[YOH���X�KX���B�]KX[���\�Y^�\�[���\�Y���YH����[�H�CB�ې�X��^�
+HO�[�T�[X�
+J_CB��[O^��B��X��ܛ�[����B��ܙ\��K�\��Y	؛ܙ\�XB��ܙ\��Y]\ΈL�B�Y[�Έ�MN�B�^[Yێ��Y��B��\��܎�\�[���\�Y��Y�][����[�\��B��[��][ێ��[���X\�H�B��۝�^�N�MB���܋B��۝�ZY��\�[���\�Y	��
+HOOHK��ܜ�X�HOOH�[X�Y
+H�
+��
+B�\�^N���^�B�[Yے][\Έ��[�\��B��\�L�B����Y�Έ�\��ؘJ�
+H�B�_CB��B��[�B��[O^��B��Y��B�ZY���B��ܙ\��Y]\Έ�L	H�B��X��ܛ�[���Y�P��B��ܙ\��K�\��Y	؛ܙ\�XB�\�^N���^�B�[Yے][\Έ��[�\��B��\�Y�P�۝[����[�\��B��۝�^�N�L�B��۝�ZY��
+�B���܋B��^��[�ΈB��[��][ێ��[���X\�H�B�_CB��B��\�[���\�Y	��HOOHK��ܜ�X�B�����ȃB��\�[���\�Y	��HOOH�[X�Y	���[X�YOOHK��ܜ�X�B����%H�B��ȐH�����ȋ��V�W_CB���[��B����X�_CB�؝]ۏ�B�
+N�B�J_CB��]��B�B��ʈ^[�][ۈ
+��CB����ԙ\�[	��
+B�]�B��\�Ә[YOH�^[�][ۋX\X\��B��[O^��B��X��ܛ�[���[X�YOOHK��ܜ�X���ٌ�����ٙ��Y�H�B��ܙ\��K�\��Y	��[X�YOOHK��ܜ�X����
+�Y�XȈ��٘�MXMH�XB��ܙ\��Y]\ΈL�B�Y[�Έ�M�N�B�X\��[����N�MB�_CB��B�B��[O^��B��۝�^�N�MB��۝�ZY��
+�B���܎��[X�YOOHK��ܜ�X����M�L�H����̍����B�X\��[����N�
+�B�_CB��B���[X�YOOHK��ܜ�X����$�9�h�)��� H����%H9.#y�h�)�ȟCB���[X�YOOHK��ܜ�X�	��
+B��[��[O^���۝�ZY��
+L�۝�^�N�L�X\��[�Y����܎���M�L�H�_O�B�9�h�)�Έ�ȐH�����ȋ��V�K��ܜ�X�_CB���[��B�
+_CB���B��[O^���۝�^�N�L���܎�����MLH�[�RZY��K��KX\��[��_O�B��K�^[�][۟CB���B��]��B�
+_CB�B��ʈ�^�]ۈ
+��CB����ԙ\�[	��
+B��]ۃB��\�Ә[YOH��^X���B�ې�X��^�[�S�^CB��[O^��B��X��ܛ�[��[�X\�YܘYY[�
+L�YY�	Д�S��\��K	Д�S���[X\�_JXB���܎��ٙ���B��ܙ\����ۙH�B��ܙ\��Y]\ΈL�B�Y[�Έ�M��B��۝�^�N�MB��۝�ZY��
+�B��\��܎���[�\��B��Y��L	H�B����Y�Έ
+L��ؘJL
+
+��K��XB��[��][ێ��[���X\�H�B�_CB��B���\��[�
+�H�H]Y\�[ۜ˛[�����d9��8ऺ)����8�������(x�k�ec�hc8�n8����CB�؝]ۏ�B�
+_CB��XZ[��B��]��B�
+N�B�CB�B�^ܝY�][�[��[ۈ]Z^�Y�J
+H�B��]\��
+B��\�[��CB��[�X��^�B�]�B��[O^��B�\�^N���^�B�[Yے][\Έ��[�\��B��\�Y�P�۝[����[�\��B�Z[�ZY���L��B��۝�^�N�M�B���܎��͍
+���B��X��ܛ�[����S����B�_CB��B�:*�x�o�/�8�o�.+K���B��]��B�CB��B�]Z^��۝[�σB���\�[��O�B�
+N�B�CB
